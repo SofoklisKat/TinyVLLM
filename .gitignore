@@ -219,5 +219,5 @@ __marimo__/
 
 # TinyVLLM artifacts
 checkpoints/
-data/
+/data/
 .venv/
