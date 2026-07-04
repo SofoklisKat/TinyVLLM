@@ -21,3 +21,17 @@ class Predictor(nn.Module):
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
         return F.normalize(self.net(z), dim=1)
+
+
+class PatchPredictor(nn.Module):
+    """Same MLP applied independently to each patch token (B, N, D)."""
+
+    def __init__(self, embed_dim: int = 128, hidden_dim: int = 256):
+        super().__init__()
+        self.mlp = Predictor(embed_dim, hidden_dim)
+
+    def forward(self, patches: torch.Tensor) -> torch.Tensor:
+        batch, n_patches, dim = patches.shape
+        flat = patches.reshape(batch * n_patches, dim)
+        out = self.mlp(flat)
+        return out.reshape(batch, n_patches, dim)

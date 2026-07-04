@@ -15,7 +15,7 @@ def test_one_train_step_mnist_shapes():
 
     encoder = ImageEncoder(config.in_channels, config.embed_dim).to(device)
     predictor = Predictor(config.embed_dim, config.predictor_hidden).to(device)
-    corruptor = ViewCorruptor(mode="mix", patch_size=config.patch_size)
+    corruptor = ViewCorruptor(mode="mix", patch_size=config.mask_patch_size)
     optimizer = torch.optim.Adam(
         list(encoder.parameters()) + list(predictor.parameters()),
         lr=config.lr,
@@ -40,7 +40,7 @@ def test_one_train_step_cifar_shapes():
     config = Config(dataset="cifar10")
     encoder = ImageEncoder(config.in_channels, config.embed_dim)
     predictor = Predictor(config.embed_dim, config.predictor_hidden)
-    corruptor = ViewCorruptor(mode="mix", patch_size=config.patch_size)
+    corruptor = ViewCorruptor(mode="mix", patch_size=config.mask_patch_size)
 
     clean = torch.rand(4, 3, 32, 32)
     corrupt = corruptor(clean)

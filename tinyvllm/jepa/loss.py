@@ -4,6 +4,20 @@ import torch
 import torch.nn.functional as F
 
 
+def jepa_patch_loss(
+    predicted: torch.Tensor,
+    target: torch.Tensor,
+    *,
+    stop_grad_target: bool = True,
+) -> torch.Tensor:
+    """Patch-level JEPA loss over token dim, shapes (B, N, D)."""
+    if stop_grad_target:
+        target = target.detach()
+
+    sim = F.cosine_similarity(predicted, target, dim=-1)
+    return (1.0 - sim).mean()
+
+
 def jepa_loss(
     predicted: torch.Tensor,
     target: torch.Tensor,

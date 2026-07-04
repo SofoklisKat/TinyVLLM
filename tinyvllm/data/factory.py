@@ -10,15 +10,13 @@ from torchvision import datasets, transforms
 DatasetName = Literal["mnist", "cifar10"]
 
 
-def _normalize(dataset: DatasetName):
-    """Scale pixel values to [0, 1] — matches ViewCorruptor clamp range."""
-    if dataset == "mnist":
-        return transforms.Compose([
-            transforms.ToTensor(),
-        ])
-    return transforms.Compose([
-        transforms.ToTensor(),
-    ])
+def _build_transform(dataset: DatasetName, image_size: int | None):
+    """Scale to [0, 1] and optionally resize for ViT."""
+    steps = []
+    if image_size is not None:
+        steps.append(transforms.Resize((image_size, image_size)))
+    steps.append(transforms.ToTensor())
+    return transforms.Compose(steps)
 
 
 def get_dataloader(
@@ -27,10 +25,11 @@ def get_dataloader(
     train: bool = True,
     num_workers: int = 0,
     data_root: str = "data",
+    image_size: int | None = None,
 ) -> DataLoader:
     """Return a DataLoader for MNIST or CIFAR-10."""
     root = Path(data_root)
-    transform = _normalize(dataset)
+    transform = _build_transform(dataset, image_size)
 
     if dataset == "mnist":
         ds = datasets.MNIST(

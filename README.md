@@ -11,12 +11,17 @@ An educational, unoptimized implementation of **vision JEPA** (Joint Embedding P
 
 ## Architecture
 
+**v1 — CNN + global JEPA** (default):
+
 ```
-Corrupted image ──► ImageEncoder ──► Predictor ──► predicted embedding
-                                                        │
-                                              cosine loss
-                                                        │
-Clean image ──► ImageEncoder (stop-grad) ──► target embedding
+Corrupted image ──► CNN encoder ──► Predictor ──► predicted global embedding
+```
+
+**v1.5 — ViT + patch JEPA** (paper direction, consumer GPU):
+
+```
+Corrupted image ──► ViT encoder ──► patch tokens ──► PatchPredictor ──► predicted patch embeddings
+                              self-attention                    cosine loss vs clean patches (stop-grad)
 ```
 
 ## Setup (run on your server)
@@ -46,14 +51,30 @@ python -m tinyvllm.train --dataset mnist --epochs 10
 ## Train
 
 ```bash
-# MNIST (~minutes on CPU)
+# v1: CNN + global JEPA (MNIST, fast on CPU)
 uv run python -m tinyvllm.train --dataset mnist --epochs 10
 
-# CIFAR-10
-uv run python -m tinyvllm.train --dataset cifar10 --epochs 10
+# v1.5: ViT + patch JEPA on CIFAR (recommended for paper experiments)
+uv run python -m tinyvllm.train \
+  --encoder vit --jepa-mode patch \
+  --dataset cifar10 --image-size 32 --epochs 10
+
+# Paper-scale resolution on a 12–16 GB GPU (reduce batch if OOM)
+uv run python -m tinyvllm.train \
+  --encoder vit --jepa-mode patch \
+  --dataset cifar10 --image-size 224 --batch-size 16 --epochs 10
 ```
 
-Checkpoints: `checkpoints/{dataset}/epoch_{n}.pt`
+Checkpoints: `checkpoints/{dataset}/{encoder}_{jepa_mode}/epoch_{n}.pt`
+
+| Flag | Options | Default |
+|------|---------|---------|
+| `--encoder` | `cnn`, `vit` | `cnn` |
+| `--jepa-mode` | `global`, `patch` | `global` |
+| `--image-size` | e.g. 32, 224 | 32 |
+| `--vit-patch-size` | e.g. 4, 16 | 4 |
+| `--vit-depth` | transformer blocks | 4 |
+| `--vit-heads` | attention heads | 4 |
 
 ## Inference
 
@@ -65,8 +86,8 @@ uv run python -m tinyvllm.inference.encode \
 
 # Probe cosine similarity on test set (trained vs random baseline)
 uv run python -m tinyvllm.inference.probe \
-  --checkpoint checkpoints/mnist/epoch_10.pt \
-  --dataset mnist
+  --checkpoint checkpoints/cifar10/vit_patch/epoch_10.pt \
+  --dataset cifar10
 ```
 
 ## Tests
@@ -79,8 +100,8 @@ uv run pytest tests/
 
 ```
 tinyvllm/
-  models/     ImageEncoder, Predictor, TextEncoder stub
-  jepa/       ViewCorruptor, jepa_loss
+  models/     ImageEncoder, ViTEncoder, Predictor, PatchPredictor
+  jepa/       ViewCorruptor, jepa_loss, jepa_patch_loss
   data/       MNIST / CIFAR-10 loaders
   inference/  encode, probe
   train.py

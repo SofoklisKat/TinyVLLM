@@ -21,12 +21,14 @@ def probe(
     """Compare trained JEPA vs random predictor baseline."""
     encoder.eval()
     predictor.eval()
-    corruptor = ViewCorruptor(mode=config.corruption, patch_size=config.patch_size)
+    corruptor = ViewCorruptor(mode=config.corruption, patch_size=config.mask_patch_size)
+    image_size = config.image_size if config.encoder == "vit" else None
     loader = get_dataloader(
         config.dataset,
         batch_size=config.batch_size,
         train=False,
         num_workers=config.num_workers,
+        image_size=image_size,
     )
 
     sim_pred_clean = []
@@ -39,14 +41,22 @@ def probe(
         clean = images.to(device)
         corrupt = corruptor(clean).to(device)
 
-        z_clean = encoder(clean)
-        z_pred = predictor(encoder(corrupt))
-
-        # Random unit vector baseline — untrained predictor equivalent.
-        z_random = F.normalize(torch.randn_like(z_clean), dim=1)
-
-        sim_pred_clean.append(F.cosine_similarity(z_pred, z_clean, dim=1).mean().item())
-        sim_random_clean.append(F.cosine_similarity(z_random, z_clean, dim=1).mean().item())
+        if config.jepa_mode == "patch":
+            patch_clean = encoder.forward_patches(clean)
+            patch_pred = predictor(encoder.forward_patches(corrupt))
+            patch_random = F.normalize(torch.randn_like(patch_clean), dim=-1)
+            sim_pred_clean.append(
+                F.cosine_similarity(patch_pred, patch_clean, dim=-1).mean().item()
+            )
+            sim_random_clean.append(
+                F.cosine_similarity(patch_random, patch_clean, dim=-1).mean().item()
+            )
+        else:
+            z_clean = encoder(clean)
+            z_pred = predictor(encoder(corrupt))
+            z_random = F.normalize(torch.randn_like(z_clean), dim=1)
+            sim_pred_clean.append(F.cosine_similarity(z_pred, z_clean, dim=1).mean().item())
+            sim_random_clean.append(F.cosine_similarity(z_random, z_clean, dim=1).mean().item())
 
     return {
         "mean_cos_pred_vs_clean": sum(sim_pred_clean) / len(sim_pred_clean),
@@ -70,6 +80,7 @@ def main() -> None:
     stats = probe(encoder, predictor, config, device, max_batches=args.max_batches)
 
     print(f"Checkpoint epoch: {epoch} | Dataset: {config.dataset}")
+    print(f"  Encoder: {config.encoder} | JEPA mode: {config.jepa_mode}")
     print(f"  cos(predicted, clean): {stats['mean_cos_pred_vs_clean']:.4f}")
     print(f"  cos(random,   clean): {stats['mean_cos_random_vs_clean']:.4f}")
     print(
