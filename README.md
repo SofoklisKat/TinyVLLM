@@ -54,7 +54,17 @@ python -m tinyvllm.train --dataset mnist --epochs 10
 # v1: CNN + global JEPA (MNIST, fast on CPU)
 uv run python -m tinyvllm.train --dataset mnist --epochs 10
 
-# v1.5: ViT + patch JEPA on CIFAR-100 (recommended next step)
+# Fast download (~30 MB) — good if CIFAR-100 is slow on your network
+uv run python -m tinyvllm.train \
+  --encoder vit --jepa-mode patch \
+  --dataset fashion_mnist --epochs 10
+
+# Tiny ImageNet (~237 MB auto-download, 64×64 RGB, 200 classes — paper-friendly)
+uv run python -m tinyvllm.train \
+  --encoder vit --jepa-mode patch \
+  --dataset tiny_imagenet --epochs 10
+
+# CIFAR-100 (~169 MB — same download size as CIFAR-10)
 uv run python -m tinyvllm.train \
   --encoder vit --jepa-mode patch \
   --dataset cifar100 --epochs 10
@@ -83,9 +93,11 @@ Checkpoints: `checkpoints/{dataset}/{encoder}_{jepa_mode}/epoch_{n}.pt`
 
 | Dataset | Download | Default `--image-size` | Notes |
 |---------|----------|------------------------|--------|
-| `mnist` | auto | 32 | CPU-friendly |
-| `cifar10` | auto | 32 | 10 classes |
-| `cifar100` | auto | 32 | 100 classes, same size as CIFAR-10 |
+| `mnist` | ~11 MB | 32 | CPU-friendly |
+| **`fashion_mnist`** | **~30 MB** | 32 | **Fast download**, grayscale, 10 classes |
+| `cifar10` | ~170 MB | 32 | 10 classes |
+| `cifar100` | ~169 MB | 32 | 100 classes |
+| **`tiny_imagenet`** | **~237 MB** | 64 | **Auto-download**, 200 classes, 64×64 RGB |
 | `imagenet` | **manual** | 224 | ImageFolder layout below |
 
 **ImageNet folder layout** (or ImageNet-100 subset with same structure):

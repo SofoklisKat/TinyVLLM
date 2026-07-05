@@ -7,12 +7,15 @@ from tinyvllm.data.factory import default_image_size, default_vit_patch_size
 
 
 def test_default_image_sizes():
+    assert default_image_size("fashion_mnist") == 32
     assert default_image_size("cifar100") == 32
+    assert default_image_size("tiny_imagenet") == 64
     assert default_image_size("imagenet") == 224
 
 
 def test_default_vit_patch_sizes():
     assert default_vit_patch_size("cifar10") == 4
+    assert default_vit_patch_size("tiny_imagenet") == 8
     assert default_vit_patch_size("imagenet") == 16
 
 

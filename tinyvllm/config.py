@@ -37,15 +37,19 @@ class Config:
 
     @property
     def in_channels(self) -> int:
-        return 1 if self.dataset == "mnist" else 3
+        if self.dataset in ("mnist", "fashion_mnist"):
+            return 1
+        return 3
 
     @property
     def mask_patch_size(self) -> int:
         """Patch size for ViewCorruptor spatial masking (pixels)."""
-        if self.dataset == "mnist":
+        if self.dataset in ("mnist", "fashion_mnist"):
             return 7
         if self.dataset == "imagenet":
             return 16
+        if self.dataset == "tiny_imagenet":
+            return 8
         return 8
 
     def checkpoint_path(self, epoch: int) -> str:
