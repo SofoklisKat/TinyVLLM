@@ -5,7 +5,7 @@ import argparse
 import torch
 import torch.nn.functional as F
 
-from tinyvllm.data.factory import get_dataloader
+from tinyvllm.data.factory import DATASET_CHOICES, get_dataloader
 from tinyvllm.jepa.views import ViewCorruptor
 from tinyvllm.train import load_checkpoint
 
@@ -28,6 +28,7 @@ def probe(
         batch_size=config.batch_size,
         train=False,
         num_workers=config.num_workers,
+        data_root=config.data_root,
         image_size=image_size,
     )
 
@@ -67,7 +68,7 @@ def probe(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Probe JEPA embedding alignment")
     parser.add_argument("--checkpoint", required=True)
-    parser.add_argument("--dataset", choices=["mnist", "cifar10"], default=None)
+    parser.add_argument("--dataset", choices=DATASET_CHOICES, default=None)
     parser.add_argument("--max-batches", type=int, default=50)
     args = parser.parse_args()
 

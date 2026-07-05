@@ -54,18 +54,51 @@ python -m tinyvllm.train --dataset mnist --epochs 10
 # v1: CNN + global JEPA (MNIST, fast on CPU)
 uv run python -m tinyvllm.train --dataset mnist --epochs 10
 
-# v1.5: ViT + patch JEPA on CIFAR (recommended for paper experiments)
+# v1.5: ViT + patch JEPA on CIFAR-100 (recommended next step)
+uv run python -m tinyvllm.train \
+  --encoder vit --jepa-mode patch \
+  --dataset cifar100 --epochs 10
+
+# ImageNet — manual download; expects {data_root}/train/ and {data_root}/val/
+uv run python -m tinyvllm.train \
+  --encoder vit --jepa-mode patch \
+  --dataset imagenet --data-root /path/to/imagenet \
+  --batch-size 32 --num-workers 4 --epochs 10
+
+# Paper-scale CIFAR / small GPU
 uv run python -m tinyvllm.train \
   --encoder vit --jepa-mode patch \
   --dataset cifar10 --image-size 32 --epochs 10
 
-# Paper-scale resolution on a 12–16 GB GPU (reduce batch if OOM)
+# ImageNet at 224×224 (12–16 GB GPU; reduce batch if OOM)
 uv run python -m tinyvllm.train \
   --encoder vit --jepa-mode patch \
-  --dataset cifar10 --image-size 224 --batch-size 16 --epochs 10
+  --dataset imagenet --data-root /path/to/imagenet \
+  --image-size 224 --vit-patch-size 16 --batch-size 16 --epochs 10
 ```
 
 Checkpoints: `checkpoints/{dataset}/{encoder}_{jepa_mode}/epoch_{n}.pt`
+
+### Datasets
+
+| Dataset | Download | Default `--image-size` | Notes |
+|---------|----------|------------------------|--------|
+| `mnist` | auto | 32 | CPU-friendly |
+| `cifar10` | auto | 32 | 10 classes |
+| `cifar100` | auto | 32 | 100 classes, same size as CIFAR-10 |
+| `imagenet` | **manual** | 224 | ImageFolder layout below |
+
+**ImageNet folder layout** (or ImageNet-100 subset with same structure):
+
+```
+/path/to/imagenet/
+  train/
+    n01440764/
+      *.JPEG
+  val/
+    n01440764/
+      *.JPEG
+```
 
 | Flag | Options | Default |
 |------|---------|---------|

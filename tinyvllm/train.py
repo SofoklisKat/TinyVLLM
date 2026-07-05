@@ -6,7 +6,8 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-from tinyvllm.config import Config
+from tinyvllm.config import Config, apply_dataset_defaults
+from tinyvllm.data.factory import DATASET_CHOICES
 from tinyvllm.data.factory import get_dataloader
 from tinyvllm.jepa.loss import jepa_loss, jepa_patch_loss
 from tinyvllm.jepa.views import ViewCorruptor
@@ -105,6 +106,7 @@ def _migrate_config(raw: Config) -> Config:
         epochs=fields.get("epochs", 10),
         corruption=fields.get("corruption", "mix"),
         checkpoint_dir=fields.get("checkpoint_dir", "checkpoints"),
+        data_root=fields.get("data_root", "data"),
         num_workers=fields.get("num_workers", 0),
         image_size=fields.get("image_size", 32),
         vit_patch_size=fields.get("vit_patch_size", 4),
@@ -129,14 +131,25 @@ def validate_config(config: Config) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train TinyVLLM image JEPA")
-    parser.add_argument("--dataset", choices=["mnist", "cifar10"], default="mnist")
+    parser.add_argument("--dataset", choices=DATASET_CHOICES, default="mnist")
     parser.add_argument("--encoder", choices=["cnn", "vit"], default="cnn")
     parser.add_argument("--jepa-mode", choices=["global", "patch"], default="global")
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--image-size", type=int, default=32)
-    parser.add_argument("--vit-patch-size", type=int, default=4)
+    parser.add_argument("--data-root", default="data", help="Download dir (CIFAR) or ImageNet root")
+    parser.add_argument(
+        "--image-size",
+        type=int,
+        default=None,
+        help="Auto: 32 for MNIST/CIFAR, 224 for ImageNet",
+    )
+    parser.add_argument(
+        "--vit-patch-size",
+        type=int,
+        default=None,
+        help="Auto: 4 for CIFAR, 16 for ImageNet",
+    )
     parser.add_argument("--vit-depth", type=int, default=4)
     parser.add_argument("--vit-heads", type=int, default=4)
     parser.add_argument(
@@ -146,6 +159,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    image_size, vit_patch_size = apply_dataset_defaults(
+        args.dataset, args.image_size, args.vit_patch_size
+    )
+
     config = Config(
         dataset=args.dataset,
         encoder=args.encoder,
@@ -154,8 +171,9 @@ def main() -> None:
         batch_size=args.batch_size,
         lr=args.lr,
         corruption=args.corruption,
-        image_size=args.image_size,
-        vit_patch_size=args.vit_patch_size,
+        data_root=args.data_root,
+        image_size=image_size,
+        vit_patch_size=vit_patch_size,
         vit_depth=args.vit_depth,
         vit_heads=args.vit_heads,
     )
@@ -177,6 +195,7 @@ def main() -> None:
         batch_size=config.batch_size,
         train=True,
         num_workers=config.num_workers,
+        data_root=config.data_root,
         image_size=image_size,
     )
     optimizer = torch.optim.Adam(

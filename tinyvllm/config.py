@@ -3,8 +3,9 @@
 from dataclasses import dataclass
 from typing import Literal
 
+from tinyvllm.data.factory import DatasetName, default_image_size, default_vit_patch_size
 
-DatasetName = Literal["mnist", "cifar10"]
+
 CorruptionMode = Literal["noise", "blur", "mask", "mix"]
 EncoderType = Literal["cnn", "vit"]
 JepaMode = Literal["global", "patch"]
@@ -24,6 +25,7 @@ class Config:
     epochs: int = 10
     corruption: CorruptionMode = "mix"
     checkpoint_dir: str = "checkpoints"
+    data_root: str = "data"
     num_workers: int = 0
 
     # ViT settings (used when encoder="vit")
@@ -40,8 +42,23 @@ class Config:
     @property
     def mask_patch_size(self) -> int:
         """Patch size for ViewCorruptor spatial masking (pixels)."""
-        return 7 if self.dataset == "mnist" else 8
+        if self.dataset == "mnist":
+            return 7
+        if self.dataset == "imagenet":
+            return 16
+        return 8
 
     def checkpoint_path(self, epoch: int) -> str:
         tag = f"{self.encoder}_{self.jepa_mode}"
         return f"{self.checkpoint_dir}/{self.dataset}/{tag}/epoch_{epoch}.pt"
+
+
+def apply_dataset_defaults(
+    dataset: DatasetName,
+    image_size: int | None,
+    vit_patch_size: int | None,
+) -> tuple[int, int]:
+    """Fill image / ViT patch sizes when CLI leaves them unset."""
+    resolved_image = image_size if image_size is not None else default_image_size(dataset)
+    resolved_patch = vit_patch_size if vit_patch_size is not None else default_vit_patch_size(dataset)
+    return resolved_image, resolved_patch
