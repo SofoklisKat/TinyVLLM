@@ -43,14 +43,18 @@ def jepa_loss(
     return (1.0 - sim).mean()
 
 
-# ---------------------------------------------------------------------------
-# Phase 2 stub — CLIP-style InfoNCE (not used in v1)
-# ---------------------------------------------------------------------------
-#
-# def contrastive_loss(image_emb, text_emb, temperature=0.07):
-#     """InfoNCE symmetric loss for image-text pairs (CLIP)."""
-#     logits = image_emb @ text_emb.T / temperature
-#     labels = torch.arange(len(logits), device=logits.device)
-#     loss_i = F.cross_entropy(logits, labels)
-#     loss_t = F.cross_entropy(logits.T, labels)
-#     return (loss_i + loss_t) / 2
+# Phase 2 — CLIP contrastive loss (image ↔ text in shared embedding space)
+def contrastive_loss(
+    image_emb: torch.Tensor,
+    text_emb: torch.Tensor,
+    temperature: float = 0.07,
+) -> torch.Tensor:
+    """Symmetric InfoNCE loss (CLIP-style).
+
+    Diagonal pairs (image[i], text[i]) are positives; all other batch pairs negatives.
+    """
+    logits = image_emb @ text_emb.T / temperature
+    labels = torch.arange(len(logits), device=logits.device)
+    loss_i = F.cross_entropy(logits, labels)
+    loss_t = F.cross_entropy(logits.T, labels)
+    return (loss_i + loss_t) / 2

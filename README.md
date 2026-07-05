@@ -121,6 +121,29 @@ Checkpoints: `checkpoints/{dataset}/{encoder}_{jepa_mode}/epoch_{n}.pt`
 | `--vit-depth` | transformer blocks | 4 |
 | `--vit-heads` | attention heads | 4 |
 
+## Phase 2 — CLIP (image ↔ words)
+
+Align images with **class-name captions** in the same 128-d embedding space (mini VLM / CLIP).
+
+```bash
+# Start from your JEPA Fashion-MNIST checkpoint (recommended)
+uv run python -m tinyvllm.train_clip \
+  --dataset fashion_mnist \
+  --jepa-checkpoint checkpoints/fashion_mnist/vit_patch/epoch_2.pt \
+  --epochs 10
+
+# Or train image + text encoders from scratch
+uv run python -m tinyvllm.train_clip --dataset fashion_mnist --epochs 10
+
+# Match images to words (top-1 class name accuracy)
+uv run python -m tinyvllm.inference.match_text \
+  --checkpoint checkpoints/fashion_mnist/clip/epoch_10.pt
+```
+
+Checkpoints: `checkpoints/{dataset}/clip/epoch_{n}.pt`
+
+Supported CLIP datasets: `fashion_mnist`, `cifar10`, `cifar100`, `mnist` (class names as captions).
+
 ## Inference
 
 ```bash
@@ -154,9 +177,10 @@ tinyvllm/
 
 ## Roadmap — Phase 2: CLIP bridge
 
-- [ ] `TextEncoder` for captions (MNIST digit names, CIFAR class labels)
-- [ ] InfoNCE contrastive loss in shared 128-d space
-- [ ] `TokenDecoder`: embedding → text tokens
+- [x] `TextEncoder` + InfoNCE contrastive loss (CLIP)
+- [x] Class-name captions (Fashion-MNIST, CIFAR)
+- [x] `match_text` inference (image → best caption)
+- [ ] `TokenDecoder`: autoregressive caption generation
 
 See `docs/superpowers/specs/2026-07-03-tinyvllm-jepa-design.md` for the full design.
 
