@@ -6,6 +6,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
+from tinyvllm.checkpoint_io import safe_torch_load
 from tinyvllm.config import Config, apply_dataset_defaults
 from tinyvllm.data.factory import DATASET_CHOICES
 from tinyvllm.data.factory import get_dataloader
@@ -83,7 +84,7 @@ def save_checkpoint(
 
 
 def load_checkpoint(path: str, device: torch.device):
-    ckpt = torch.load(path, map_location=device, weights_only=False)
+    ckpt = safe_torch_load(path, device)
     config = _migrate_config(ckpt["config"])
     encoder = build_encoder(config).to(device)
     predictor = build_predictor(config).to(device)

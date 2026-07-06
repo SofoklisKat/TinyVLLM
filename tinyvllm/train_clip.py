@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 import torch
 import torch.nn as nn
 
-from tinyvllm.config import Config, apply_dataset_defaults
+from tinyvllm.checkpoint_io import safe_torch_load
+from tinyvllm.config import ClipConfig, Config, apply_dataset_defaults, migrate_clip_config
 from tinyvllm.data.char_tokenizer import encode, vocab_size
 from tinyvllm.data.factory import DATASET_CHOICES, get_dataloader
 from tinyvllm.data.labels import get_label_names, label_to_caption
@@ -22,54 +21,6 @@ from tinyvllm.train import _migrate_config, validate_config
 CLIP_DATASETS = ["fashion_mnist", "cifar10", "cifar100", "mnist"]
 
 
-@dataclass
-class ClipConfig:
-    """CLIP stage config (extends JEPA image settings)."""
-
-    dataset: str = "fashion_mnist"
-    encoder: Literal["cnn", "vit"] = "vit"
-    embed_dim: int = 128
-    batch_size: int = 64
-    lr: float = 1e-3
-    epochs: int = 10
-    temperature: float = 0.07
-    checkpoint_dir: str = "checkpoints"
-    data_root: str = "data"
-    num_workers: int = 0
-    freeze_image_encoder: bool = False
-    jepa_checkpoint: str | None = None
-    image_size: int = 32
-    vit_patch_size: int = 4
-    vit_depth: int = 4
-    vit_heads: int = 4
-    vit_mlp_ratio: int = 4
-    text_depth: int = 2
-    text_heads: int = 4
-    max_text_len: int = 32
-
-    def to_jepa_config(self) -> Config:
-        return Config(
-            dataset=self.dataset,  # type: ignore[arg-type]
-            encoder=self.encoder,
-            jepa_mode="global",
-            embed_dim=self.embed_dim,
-            batch_size=self.batch_size,
-            lr=self.lr,
-            epochs=self.epochs,
-            checkpoint_dir=self.checkpoint_dir,
-            data_root=self.data_root,
-            num_workers=self.num_workers,
-            image_size=self.image_size,
-            vit_patch_size=self.vit_patch_size,
-            vit_depth=self.vit_depth,
-            vit_heads=self.vit_heads,
-            vit_mlp_ratio=self.vit_mlp_ratio,
-        )
-
-    def checkpoint_path(self, epoch: int) -> str:
-        return f"{self.checkpoint_dir}/{self.dataset}/clip/epoch_{epoch}.pt"
-
-
 def labels_to_tokens(labels: torch.Tensor, dataset: str, max_len: int, device) -> torch.Tensor:
     """Convert batch of class indices → char token tensor."""
     rows = [encode(label_to_caption(dataset, int(y.item())), max_len=max_len) for y in labels]
@@ -77,7 +28,7 @@ def labels_to_tokens(labels: torch.Tensor, dataset: str, max_len: int, device) -
 
 
 def load_jepa_image_encoder(path: str, device: torch.device) -> tuple[nn.Module, Config]:
-    ckpt = torch.load(path, map_location=device, weights_only=False)
+    ckpt = safe_torch_load(path, device)
     config = _migrate_config(ckpt["config"])
     validate_config(config)
     encoder = build_encoder(config).to(device)
@@ -126,15 +77,15 @@ def save_clip_checkpoint(path: str, image_encoder, text_encoder, config: ClipCon
             "epoch": epoch,
             "image_encoder": image_encoder.state_dict(),
             "text_encoder": text_encoder.state_dict(),
-            "config": config,
+            "config": config.__dict__,
         },
         path,
     )
 
 
 def load_clip_checkpoint(path: str, device: torch.device):
-    ckpt = torch.load(path, map_location=device, weights_only=False)
-    config: ClipConfig = ckpt["config"]
+    ckpt = safe_torch_load(path, device)
+    config = migrate_clip_config(ckpt["config"])
     jepa_cfg = config.to_jepa_config()
     image_encoder = build_encoder(jepa_cfg).to(device)
     text_encoder = TextEncoder(
